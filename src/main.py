@@ -1,7 +1,7 @@
 import os
 
 import uvicorn
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, BackgroundTasks
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +24,7 @@ from src.endpoints.metrics.identity.identity_endpoint import router as identity_
 from src.endpoints.metadata import router as metadata_router
 from src.endpoints.metrics.metrics_info import router as metrics_info_router
 from src.endpoints.data.data_download import router as data_download_router
-
+from src.service.prometheus.prometheus_scheduler import PrometheusScheduler
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -36,6 +36,12 @@ app = FastAPI(
     version="1.0.0rc0",
     description="TrustyAI Service API",
 )
+prometheus_scheduler = PrometheusScheduler()
+
+@app.on_event("startup")
+async def startup_event():
+    background_tasks = BackgroundTasks()
+    prometheus_scheduler.schedule_calculation(background_tasks)
 
 # CORS
 app.add_middleware(
