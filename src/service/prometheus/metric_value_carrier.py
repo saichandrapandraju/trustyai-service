@@ -1,14 +1,17 @@
-from typing import Dict, Optional
-from pydantic import BaseModel
+from typing import Dict, Optional, Union
 
-class MetricValueCarrier(BaseModel):
-    def __init__(self, value_or_named_values: float | Dict[str, float]):
-        if isinstance(value_or_named_values, float):
-            self.value: float = value_or_named_values
-            self.named_values = None
+class MetricValueCarrier:
+    value: Optional[float]
+    named_values: Optional[Dict[str, float]]
+    single: bool
+
+    def __init__(self, value_or_named_values: Union[float, Dict[str, float]]):
+        if isinstance(value_or_named_values, (int, float)):
+            self.value: float = float(value_or_named_values)
+            self.named_values: Optional[Dict[str, float]] = None
             self.single: bool = True
         else:
-            self.value = None
+            self.value: Optional[float] = None
             self.named_values: Dict[str, float] = value_or_named_values
             self.single: bool = False
     

@@ -1,8 +1,8 @@
-import os
-
 import uvicorn
-from fastapi import FastAPI, Request, Response, BackgroundTasks
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
+from fastapi_utils.tasks import repeat_every
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -31,17 +31,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+prometheus_scheduler = PrometheusScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    @repeat_every(seconds=prometheus_scheduler.service_config.get("metrics_schedule", 30))
+    async def schedule_metrics_calculation():
+        prometheus_scheduler.calculate()
+    
+    # Start the scheduled task
+    await schedule_metrics_calculation()
+    
+    yield
+
 app = FastAPI(
     title="TrustyAI Service API",
     version="1.0.0rc0",
     description="TrustyAI Service API",
+    lifespan=lifespan,
 )
-prometheus_scheduler = PrometheusScheduler()
-
-@app.on_event("startup")
-async def startup_event():
-    background_tasks = BackgroundTasks()
-    prometheus_scheduler.schedule_calculation(background_tasks)
 
 # CORS
 app.add_middleware(
