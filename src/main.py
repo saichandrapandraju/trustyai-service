@@ -45,6 +45,14 @@ try:
 except ImportError:
     lm_evaluation_harness_available = False
 
+try:
+    from src.endpoints.redteam.unified import router as redteam_router
+    from src.endpoints.redteam.datasets import router as redteam_datasets_router
+
+    redteam_available = True
+except ImportError:
+    redteam_available = False
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -152,6 +160,10 @@ app.include_router(data_download_router, tags=["Download Endpoint"])
 
 if lm_evaluation_harness_available:
     app.include_router(lm_evaluation_harness_router, tags=["LM Evaluation Harness Endpoint"])
+
+if redteam_available:
+    app.include_router(redteam_router, tags=["Red Teaming"])
+    app.include_router(redteam_datasets_router, tags=["Red Teaming: Datasets"])
 
 # Deprecated endpoints
 app.include_router(dir_router, prefix="/metrics", tags=["{Legacy}: Disparate Impact Ratio"])
