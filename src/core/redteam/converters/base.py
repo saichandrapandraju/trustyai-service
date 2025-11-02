@@ -1,7 +1,7 @@
 """Base class for prompt converters."""
 
 from abc import ABC, abstractmethod
-
+from typing import Set
 
 class Converter(ABC):
     """
@@ -11,15 +11,15 @@ class Converter(ABC):
     """
 
     @abstractmethod
-    def convert(self, text: str) -> str:
+    def convert(self, text: str) -> Set[str]:
         """
-        Convert/encode the input text.
+        Convert/encode the input text to a set of transformed texts.
         
         Args:
             text: Original text to convert
             
         Returns:
-            Converted/encoded text
+            Set of converted/encoded texts
         """
         pass
 
@@ -35,15 +35,15 @@ class Converter(ABC):
         """Return human-readable name (e.g., 'Base64 Encoding')."""
         pass
 
-    def apply(self, prompt: str) -> str:
-        """
-        Apply the converter with instruction.
+    # def apply(self, prompt: str) -> str:
+    #     """
+    #     Apply the converter with instruction.
         
-        Args:
-            prompt: Original prompt
+    #     Args:
+    #         prompt: Original prompt
             
-        Returns:
-            Full prompt with instruction + converted text
-        """
-        return self.convert(prompt)
+    #     Returns:
+    #         Full prompt with instruction + converted text
+    #     """
+    #     return self.convert(prompt)
 

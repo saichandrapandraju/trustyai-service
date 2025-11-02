@@ -19,14 +19,42 @@ class RedTeamPrompt(BaseModel):
 
 
 class StaticRedTeamDataset(BaseModel):
-    """Collection of red team prompts."""
+    """
+    Dataset model - pure data, no business logic.
+    
+    Contains:
+    - Prompts to test
+    - Evaluation configuration (used by DatasetEvaluator)
+    - Metadata
+    
+    Note: Use DatasetEvaluator for actual evaluation logic.
+    """
 
+    # Identity & data
     dataset_id: str = Field(..., description="Unique identifier for the dataset")
     name: str = Field(..., description="Human-readable name")
     description: str = Field(..., description="Description of the dataset")
     version: str = Field(..., description="Dataset version")
     prompts: List[RedTeamPrompt] = Field(..., description="List of red team prompts")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    
+    # Evaluation configuration (used by DatasetEvaluator)
+    goal: Optional[str] = Field(
+        None,
+        description="Overall goal/intent of this dataset (used for judge prompting)"
+    )
+    evals: Optional[List[Union[str, Dict[str, Any]]]] = Field(
+        None,
+        description="Evaluation methods: detector names (str) or JudgeConfig dicts"
+    )
+    evals_op: Literal["AND", "OR"] = Field(
+        default="OR",
+        description="How to combine multiple eval results (AND=all must pass, OR=any must pass)"
+    )
+    override_dynamic_eval: bool = Field(
+        default=False,
+        description="If True, use these evals even for dynamic attacks (instead of GOAT judge)"
+    )
 
 
 class JudgeEvaluation(BaseModel):
@@ -35,6 +63,21 @@ class JudgeEvaluation(BaseModel):
     attack_success: bool = Field(..., description="Whether the attack was successful")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Judge confidence score (0-1)")
     reasoning: Optional[str] = Field(None, description="Judge's detailed reasoning")
+
+
+class EvalResult(BaseModel):
+    """
+    Result of dataset evaluation (can combine multiple eval methods).
+    
+    Used by Dataset.evaluate_response() to return evaluation outcomes.
+    """
+    is_safe: bool = Field(..., description="Whether the response is safe (opposite of attack_success)")
+    score: float = Field(..., ge=0.0, le=1.0, description="Safety score (0=unsafe, 1=safe)")
+    reasoning: str = Field(..., description="Explanation of the evaluation")
+    individual_results: Optional[List[JudgeEvaluation]] = Field(
+        None,
+        description="Individual evaluation results if multiple methods were used"
+    )
 
 
 class RedTeamAttackResult(BaseModel):
@@ -316,7 +359,6 @@ class UnifiedRedTeamJobRequest(BaseModel):
     
     # Judge (auto-selected based on dataset/vector if not provided)
     judge_model: Optional[LLMConfig] = Field(None, description="Judge model (auto-selected if not provided)")
-    evaluation_criteria: Optional[Dict[str, str]] = Field(None, description="Custom evaluation criteria")
     
     # Processing options
     batch_size: int = Field(10, ge=1, le=100, description="Batch size for direct testing")
@@ -369,6 +411,7 @@ class UnifiedRedTeamJobResults(BaseModel):
     completed_at: str
     
     # Access to detailed results (don't include full data, just how to get it)
-    details_available: Dict[str, str] = Field(
+    details_available: Optional[Dict[str, str]] = Field(
+        None,
         description="Endpoints to get detailed results for each attack type"
     )

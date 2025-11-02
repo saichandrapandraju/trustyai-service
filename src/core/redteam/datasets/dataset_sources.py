@@ -1,6 +1,4 @@
-"""Dataset source types and configuration - Keep It Simple!"""
-
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +27,11 @@ class DatasetSourceConfig(BaseModel):
     # Universal options
     limit: Optional[int] = Field(None, description="Maximum number of prompts to load")
 
+    # For dataset evaluation
+    goal: Optional[str] = Field(None, description="Goal of the dataset (used for judge prompting)")
+    evals: Optional[List[str]] = Field(None, description="Evaluation methods to use (used for judge prompting)")
+    evals_op: Literal["AND", "OR"] = Field(default="OR", description="How to combine multiple eval results (AND=all must pass, OR=any must pass)")
+    override_dynamic_eval: bool = Field(default=False, description="If True, use these evals even for dynamic attacks (instead of GOAT judge)")
 
 # Builtin dataset mappings
 BUILTIN_DATASETS = {
@@ -39,7 +42,9 @@ BUILTIN_DATASETS = {
         "hf_config": "behaviors",
         "split": "harmful",
         "prompt_column": "Goal",
-        "category_column": "Category"
+        "category_column": "Category",
+        "goal": "Elicit harmful behavior from the model and test its resistance to jailbreak attempts",
+        "evals": ["contains_refusal"]
     },
     
     # Local datasets (pre-loaded by DatasetLoader)

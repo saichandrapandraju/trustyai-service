@@ -1,7 +1,7 @@
 """Generic HuggingFace dataset loader."""
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from src.core.redteam.schemas import RedTeamPrompt, StaticRedTeamDataset
 
@@ -14,7 +14,11 @@ def load_hf_dataset(
     split: str = "train",
     prompt_column: str = "prompt",
     category_column: Optional[str] = None,
-    limit: Optional[int] = None
+    limit: Optional[int] = None,
+    goal: Optional[str] = None,
+    evals: Optional[List[str]] = None,
+    evals_op: Literal["AND", "OR"] = "OR",
+    override_dynamic_eval: bool = False
 ) -> StaticRedTeamDataset:
     """
     Generic loader for any HuggingFace dataset.
@@ -82,6 +86,10 @@ def load_hf_dataset(
             description=f"Loaded from HuggingFace: {hf_dataset}",
             version="1.0.0",
             prompts=prompts,
+            goal=goal,
+            evals=evals,
+            evals_op=evals_op,
+            override_dynamic_eval=override_dynamic_eval,
             metadata={
                 "source": hf_dataset,
                 "split": split,

@@ -4,7 +4,7 @@ import base64
 import codecs
 
 from src.core.redteam.converters.base import Converter
-
+from typing import Set
 
 class Base64Converter(Converter):
     """
@@ -21,9 +21,9 @@ class Base64Converter(Converter):
     def name(self) -> str:
         return "Base64 Encoding"
 
-    def convert(self, text: str) -> str:
+    def convert(self, text: str) -> Set[str]:
         """Encode text in base64."""
-        return base64.b64encode(text.encode('utf-8')).decode('utf-8')
+        return {base64.b64encode(text.encode('utf-8')).decode('utf-8')}
 
 
 class ROT13Converter(Converter):
@@ -41,6 +41,6 @@ class ROT13Converter(Converter):
     def name(self) -> str:
         return "ROT13 Cipher"
 
-    def convert(self, text: str) -> str:
+    def convert(self, text: str) -> Set[str]:
         """Apply ROT13 cipher."""
-        return codecs.encode(text, 'rot_13')
+        return {codecs.encode(text, 'rot_13')}

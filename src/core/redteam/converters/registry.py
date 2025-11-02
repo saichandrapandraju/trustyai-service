@@ -41,7 +41,7 @@ class ConverterRegistry:
         return list(cls._converters.keys())
     
     @classmethod
-    def apply_converter(cls, converter_id: str, text: str) -> str:
+    def apply_converter(cls, converter_id: str, text: str) -> List[str]:
         """
         Apply a converter to text.
         
@@ -50,7 +50,7 @@ class ConverterRegistry:
             text: Original text
             
         Returns:
-            Converted text with instruction
+            List of converted texts
             
         Raises:
             ValueError: If converter not found
@@ -59,5 +59,5 @@ class ConverterRegistry:
         if not converter:
             raise ValueError(f"Converter '{converter_id}' not found")
         
-        return converter.apply(text)
+        return list(converter.convert(text))
 

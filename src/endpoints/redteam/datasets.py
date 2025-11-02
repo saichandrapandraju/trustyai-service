@@ -14,52 +14,35 @@ router = APIRouter()
 
 
 @router.get("/redteam/datasets", summary="List available datasets")
-async def list_datasets() -> Dict[str, List[Dict[str, Any]]]:
+async def list_datasets() -> Dict[str, List[Dict[str, str]]]:
     """
-    List all available red team datasets.
-
-    Returns:
-        Simple list of available datasets with usage examples
+    List all available builtin datasets.
+    
+    Returns minimal info: id, name/path, source type.
     """
     from src.core.redteam.datasets.dataset_sources import BUILTIN_DATASETS
     
-    # Get actual loaded built-ins
-    loaded_builtins = list_builtin_datasets()
-    
-    # Build dataset list
     datasets = []
     
-    # Add loaded built-ins
-    for ds_info in loaded_builtins:
-        datasets.append({
-            "id": ds_info["dataset_id"],
-            "name": ds_info["name"],
-            "prompts": ds_info["num_prompts"],
-            "description": ds_info.get("description", ""),
-            "usage": {
-                "source": "builtin",
-                "dataset_id": ds_info["dataset_id"]
-            }
-        })
-    
-    # Add other available builtins (like jailbreakbench that load from HF)
+    # Auto-discover all builtin datasets
     for builtin_id, builtin_config in BUILTIN_DATASETS.items():
-        # Skip if already in loaded list
-        if any(d["id"] == builtin_id for d in datasets):
-            continue
+        dataset_entry = {
+            "id": builtin_id,
+            "source": "builtin"
+        }
         
-        # Add with estimated info
-        if builtin_id == "jailbreakbench":
-            datasets.append({
-                "id": builtin_id,
-                "name": "JailbreakBench",
-                "prompts": "~100",
-                "description": "Research-vetted harmful behaviors from HuggingFace",
-                "usage": {
-                    "source": "builtin",
-                    "dataset_id": builtin_id
-                }
-            })
+        # Add name (HF path or dataset id)
+        if builtin_config.get("use_preloaded"):
+            dataset_entry["name"] = builtin_id
+            dataset_entry["type"] = "preloaded"
+        elif builtin_config.get("hf_dataset"):
+            dataset_entry["name"] = builtin_config["hf_dataset"]
+            dataset_entry["type"] = "huggingface"
+        else:
+            dataset_entry["name"] = builtin_id
+            dataset_entry["type"] = "unknown"
+        
+        datasets.append(dataset_entry)
     
     return {"datasets": datasets}
 

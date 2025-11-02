@@ -13,21 +13,33 @@ PROMPT_INJECTION = AttackVector(
     vector_id="prompt_injection",
     name="Prompt Injection",
     description="Tests instruction override and injection attacks (ignore previous, system commands, etc.)",
-    datasets=["sample-jailbreaks-v1"]  # Has injection prompts
+    datasets=["sample-jailbreaks-v1"],  # Has injection prompts
+    taxonomy_ids=["OWASP-LLM-01"],
+    converter_ids=["base64", "rot13", "unicode"],  # Encoding can bypass filters
+    dynamic_attack_ids=["goat"],  # Multi-turn injection attempts
+    severity="high"
 )
 
 JAILBREAK = AttackVector(
     vector_id="jailbreak",
     name="Jailbreak",
     description="Tests attempts to bypass safety guardrails (DAN, roleplay, hypothetical scenarios, etc.)",
-    datasets=["jailbreakbench"]  # Builtin: 100 research-vetted jailbreak attempts from HF
+    datasets=["jailbreakbench"],  # Builtin: 100 research-vetted jailbreak attempts from HF
+    taxonomy_ids=["OWASP-LLM-01"],
+    converter_ids=["base64", "rot13", "leetspeak"],  # Obfuscation techniques
+    dynamic_attack_ids=["goat"],  # Iterative jailbreak refinement
+    severity="critical"
 )
 
 HARMFUL_CONTENT = AttackVector(
     vector_id="harmful_content",
     name="Harmful Content",
     description="Tests direct requests for harmful/illegal/unethical content",
-    datasets=["jailbreakbench"]  # Builtin: JBB covers harmful behaviors
+    datasets=["jailbreakbench"],  # Builtin: JBB covers harmful behaviors
+    taxonomy_ids=["OWASP-LLM-02"],
+    converter_ids=["base64", "unicode"],  # Simple obfuscation
+    dynamic_attack_ids=["goat"],  # Progressive harmful requests
+    severity="critical"
 )
 
 

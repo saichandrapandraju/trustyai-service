@@ -50,7 +50,11 @@ class DatasetRegistry:
                         description=dataset.description,
                         version=dataset.version,
                         prompts=dataset.prompts[:config.limit],
-                        metadata=dataset.metadata
+                        metadata=dataset.metadata,
+                        goal=config.goal,
+                        evals=config.evals,
+                        evals_op=config.evals_op,
+                        override_dynamic_eval=config.override_dynamic_eval
                     )
                     return limited_dataset
                 
@@ -73,7 +77,11 @@ class DatasetRegistry:
                 split=config.split,
                 prompt_column=config.prompt_column,
                 category_column=config.category_column,
-                limit=config.limit
+                limit=config.limit,
+                goal=config.goal,
+                evals=config.evals,
+                evals_op=config.evals_op,
+                override_dynamic_eval=config.override_dynamic_eval
             )
         
         # CUSTOM_FILE: Load from JSON file

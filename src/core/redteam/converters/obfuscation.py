@@ -1,7 +1,7 @@
 """Obfuscation-based converters (Unicode, Leetspeak)."""
 
 from src.core.redteam.converters.base import Converter
-
+from typing import Set
 
 class UnicodeConverter(Converter):
     """
@@ -31,13 +31,13 @@ class UnicodeConverter(Converter):
     def name(self) -> str:
         return "Unicode Homoglyphs"
 
-    def convert(self, text: str) -> str:
+    def convert(self, text: str) -> Set[str]:
         """Replace characters with Unicode homoglyphs."""
-        result = []
+        converted = ""
         for char in text:
             # Replace if we have a homoglyph, otherwise keep original
-            result.append(self.HOMOGLYPHS.get(char.lower(), char))
-        return ''.join(result)
+            converted += self.HOMOGLYPHS.get(char.lower(), char)
+        return {converted}
 
 
 class LeetspeakConverter(Converter):
@@ -68,10 +68,10 @@ class LeetspeakConverter(Converter):
     def name(self) -> str:
         return "Leetspeak (1337)"
 
-    def convert(self, text: str) -> str:
+    def convert(self, text: str) -> Set[str]:
         """Convert to leetspeak."""
-        result = []
+        converted = ""
         for char in text:
             # Replace vowels and common letters
-            result.append(self.LEET_MAP.get(char.lower(), char))
-        return ''.join(result)
+            converted += self.LEET_MAP.get(char.lower(), char)
+        return {converted}
