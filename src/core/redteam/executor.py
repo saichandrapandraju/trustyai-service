@@ -86,7 +86,9 @@ class RedTeamExecutor:
         target_model: LLMInterface,
         judge_model: Optional[LLMInterface] = None,
         attacker_model: Optional[LLMInterface] = None,
-        progress_callback: Optional[callable] = None
+        progress_callback: Optional[callable] = None,
+        dataset_callback: Optional[callable] = None,
+        update_planned_callback: Optional[callable] = None
     ):
         """
         Initialize executor.
@@ -95,12 +97,16 @@ class RedTeamExecutor:
             target_model: The model being tested
             judge_model: Optional judge for evaluations (auto-selected if not provided)
             attacker_model: Optional attacker for dynamic attacks
-            progress_callback: Optional callback for real-time progress updates
+            progress_callback: Optional callback for real-time test progress updates
+            dataset_callback: Optional callback for dataset-level progress (for external libs)
+            update_planned_callback: Optional callback to update tests_planned (for Garak)
         """
         self.target_model = target_model
         self.judge_model = judge_model
         self.attacker_model = attacker_model
         self.progress_callback = progress_callback
+        self.dataset_callback = dataset_callback
+        self.update_planned_callback = update_planned_callback
         
         # Create evaluator for dataset evaluations
         self.evaluator = DatasetEvaluator(judge_llm=judge_model)
@@ -129,11 +135,53 @@ class RedTeamExecutor:
         logger.info(f"Executing attack vector: {vector.vector_id}")
         all_results: List[AttackResult] = []
         
-        # 1. Load all datasets for this vector
+        # 1. Handle external library datasets (e.g., Garak probes)
+        for dataset_id in vector.datasets:
+            if dataset_id.startswith("garak."):
+                # Garak probe - use GarakExecutor
+                probe_name = dataset_id.replace("garak.", "")
+                
+                # Update dataset progress
+                if self.dataset_callback:
+                    self.dataset_callback(dataset_name=f"Garak: {probe_name}", completed=False)
+                
+                logger.info(f"Running Garak probe: {probe_name}")
+                
+                try:
+                    from src.core.redteam.integrations.garak.executor import get_garak_executor
+                    
+                    garak_executor = get_garak_executor()
+                    garak_results = await garak_executor.execute_dataset(
+                        dataset_id=probe_name,
+                        target_model=self.target_model,
+                        progress_callback=self.progress_callback
+                    )
+                    
+                    all_results.extend(garak_results)
+                    logger.info(f"Garak probe {probe_name}: {len(garak_results)} tests completed")
+                    
+                    # Update total planned tests (now we know how many Garak had)
+                    if self.update_planned_callback:
+                        self.update_planned_callback(additional_tests=len(garak_results))
+                    
+                    # Mark dataset as completed
+                    if self.dataset_callback:
+                        self.dataset_callback(dataset_name=f"Garak: {probe_name}", completed=True)
+                    
+                except ImportError:
+                    logger.warning("Garak integration not available (import failed)")
+                except Exception as e:
+                    logger.error(f"Error running Garak probe {probe_name}: {e}")
+        
+        # 2. Load and test native datasets
         datasets = self._load_datasets(vector.datasets)
-        logger.info(f"Loaded {len(datasets)} datasets for {vector.vector_id}")
+        logger.info(f"Loaded {len(datasets)} native datasets for {vector.vector_id}")
         
         for dataset in datasets:
+            # Update dataset progress
+            if self.dataset_callback:
+                self.dataset_callback(dataset_name=dataset.name, completed=False)
+            
             logger.info(f"Testing dataset: {dataset.dataset_id} ({len(dataset.prompts)} prompts)")
             
             # 2a. Direct testing (original prompts)
@@ -164,14 +212,27 @@ class RedTeamExecutor:
                 )
                 all_results.extend(dynamic_results)
                 logger.info(f"Dynamic testing: {len(dynamic_results)} tests completed")
+            
+            # Mark dataset as completed
+            if self.dataset_callback:
+                self.dataset_callback(dataset_name=dataset.name, completed=True)
         
         # 3. Aggregate results
         return self._aggregate_results(vector, all_results)
     
     def _load_datasets(self, dataset_ids: List[str]) -> List[StaticRedTeamDataset]:
-        """Load all datasets by ID."""
+        """
+        Load all datasets by ID.
+        
+        Note: Garak datasets (starting with 'garak.') are handled separately
+        in execute_vector() - they run through GarakExecutor, not loaded here.
+        """
         datasets = []
         for dataset_id in dataset_ids:
+            # Skip external library datasets - they're executed separately
+            if dataset_id.startswith("garak."):
+                continue
+            
             try:
                 config = DatasetSourceConfig(source="builtin", dataset_id=dataset_id)
                 dataset = DatasetRegistry.load_dataset(config)

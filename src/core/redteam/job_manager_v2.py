@@ -46,6 +46,11 @@ class RedTeamJob:
         self.total_vectors: int = 0
         self.completed_vectors: int = 0
         
+        # Real-time tracking (dataset level) - for Garak and other external libs
+        self.current_dataset: Optional[str] = None
+        self.total_datasets: int = 0
+        self.completed_datasets: int = 0
+        
         # Real-time tracking (test level) - updated during execution
         self.tests_completed: int = 0
         self.tests_planned: int = 0
@@ -67,6 +72,10 @@ class RedTeamJob:
                     "current_vector": self.current_vector,
                     "completed_vectors": self.completed_vectors,
                     "total_vectors": self.total_vectors,
+                    # Dataset-level progress (for external libs like Garak)
+                    "current_dataset": self.current_dataset,
+                    "completed_datasets": self.completed_datasets,
+                    "total_datasets": self.total_datasets,
                     # Real-time test tracking
                     "tests_completed": self.tests_completed,
                     "tests_planned": self.tests_planned,
@@ -169,20 +178,37 @@ class RedTeamJobManager:
             judge_model = get_llm(job.request.judge_model) if job.request.judge_model else None
             attacker_model = get_llm(job.request.attacker_model) if job.request.attacker_model else None
             
-            # Create progress callback for real-time tracking
+            # Create progress callbacks for real-time tracking
             def update_progress(is_safe: bool):
-                """Update job progress counters in real-time."""
+                """Update job progress counters in real-time (per test)."""
                 with job._lock:
                     job.tests_completed += 1
                     if not is_safe:  # Attack succeeded
                         job.successful_attacks_current += 1
             
-            # Create executor with progress callback
+            def update_dataset_progress(dataset_name: str, completed: bool):
+                """Update dataset-level progress (for Garak and external libs)."""
+                with job._lock:
+                    if completed:
+                        job.completed_datasets += 1
+                        job.current_dataset = None
+                    else:
+                        job.current_dataset = dataset_name
+            
+            def update_planned_tests(additional_tests: int):
+                """Update total planned tests (for external libs like Garak)."""
+                with job._lock:
+                    job.tests_planned += additional_tests
+                    logger.info(f"Updated tests_planned: +{additional_tests} → {job.tests_planned} total")
+            
+            # Create executor with callbacks
             executor = RedTeamExecutor(
                 target_model=target_model,
                 judge_model=judge_model,
                 attacker_model=attacker_model,
-                progress_callback=update_progress
+                progress_callback=update_progress,
+                dataset_callback=update_dataset_progress,
+                update_planned_callback=update_planned_tests
             )
             
             # Choose testing approach based on request type
@@ -239,6 +265,11 @@ class RedTeamJobManager:
         job.total_vectors = len(vectors)
         logger.info(f"Testing {len(vectors)} attack vectors")
         
+        # Calculate total datasets (for progress display)
+        total_datasets = sum(len(vector.datasets) for vector in vectors)
+        with job._lock:
+            job.total_datasets = total_datasets
+        
         # Calculate total tests planned for progress tracking
         total_tests_planned = 0
         
@@ -252,8 +283,15 @@ class RedTeamJobManager:
                 num_converters = len(job.request.converters)  # Use user's count!
         
         for vector in vectors:
-            # Load datasets to count prompts
+            # Count tests for each dataset
             for dataset_id in vector.datasets:
+                # Skip external library datasets (can't count without running)
+                if dataset_id.startswith("garak."):
+                    # Can't determine Garak test count without running probe
+                    # We'll update tests_planned dynamically as Garak completes
+                    logger.info(f"Skipping test count for Garak dataset: {dataset_id} (will update after execution)")
+                    continue
+                
                 try:
                     config = DatasetSourceConfig(source="builtin", dataset_id=dataset_id)
                     dataset = DatasetRegistry.load_dataset(config)
