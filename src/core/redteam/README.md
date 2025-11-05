@@ -138,9 +138,8 @@ POST /redteam/evaluate
 
 **Use Case:** Test if encoding bypasses content filters
 
-**Request:**
+**Request:** POST /redteam/evaluate
 ```json
-POST /redteam/evaluate
 {
   "target_model": {
     "model_name": "qwen2",
@@ -190,9 +189,8 @@ POST /redteam/evaluate
 
 **Use Case:** Test against sophisticated adaptive attacks
 
-**Request:**
+**Request:** POST /redteam/evaluate
 ```json
-POST /redteam/evaluate
 {
   "target_model": {
     "model_name": "qwen2",
